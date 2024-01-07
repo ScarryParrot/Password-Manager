@@ -1,4 +1,4 @@
-from tkinter import Tk, Label, Button, Entry, Listbox, messagebox, Toplevel
+from tkinter import Tk, Label, Button, Entry, Listbox, messagebox, Toplevel, END
 from tkinter import ttk
 import pyperclip
 
@@ -43,6 +43,9 @@ class root_window:
         # Dictionary to store website names and corresponding passwords
         self.website_passwords = {}
 
+        # Bind double click event on Listbox to display details in Entry boxes
+        self.item_listbox.bind('<Double-1>', self.display_selected_item)
+
     def create_entry_labels(self):
         labels_info = ('Id', 'Website', 'Username', 'Password')
         self.col_no = 0
@@ -56,8 +59,7 @@ class root_window:
         self.col_no = 0
         self.row_no = 1  # Incremented row number for entry boxes
         for i in range(4):
-            show = "" if i != 3 else "*"
-            entry_box = Entry(self.crud_frame, width=20, background="lightgrey", font=("Arial", 12), show=show)
+            entry_box = Entry(self.crud_frame, width=20, background="lightgrey", font=("Arial", 12))
             entry_box.grid(row=self.row_no, column=self.col_no, padx=5, pady=2)
             self.col_no += 1
             self.entry_boxes.append(entry_box)
@@ -71,11 +73,11 @@ class root_window:
             messagebox.showinfo("Already Saved", f"This website ({website_value}) is already saved.")
         else:
             # Display entered website and password in the Listbox
-            item_text = f"Website: {website_value}, Password: {password_value}"
+            item_text = f"Website: {website_value}, Username: {self.entry_boxes[2].get()}, Password: {password_value}"
             self.item_listbox.insert("end", item_text)
 
             # Add the website and password to the dictionary
-            self.website_passwords[website_value] = password_value
+            self.website_passwords[website_value] = {'Username': self.entry_boxes[2].get(), 'Password': password_value}
 
     def update_data(self):
         # Get the selected item from the Listbox
@@ -89,7 +91,8 @@ class root_window:
 
         # Extract website name and password from the selected item
         website_value = selected_item.split(',')[0].split(': ')[1]
-        password_value = selected_item.split(',')[1].split(': ')[1]
+        username_value = selected_item.split(',')[1].split(': ')[1]
+        password_value = selected_item.split(',')[2].split(': ')[1]
 
         # Open a new window for updating
         update_window = Toplevel(self.root)
@@ -102,28 +105,34 @@ class root_window:
         updated_website_entry.insert(0, website_value)
         updated_website_entry.grid(row=0, column=1, padx=5, pady=2)
 
+        username_label = Label(update_window, text="Username:")
+        username_label.grid(row=1, column=0, padx=5, pady=2)
+        updated_username_entry = Entry(update_window, width=20, background="lightgrey", font=("Arial", 12))
+        updated_username_entry.insert(0, username_value)
+        updated_username_entry.grid(row=1, column=1, padx=5, pady=2)
+
         password_label = Label(update_window, text="Password:")
-        password_label.grid(row=1, column=0, padx=5, pady=2)
+        password_label.grid(row=2, column=0, padx=5, pady=2)
         updated_password_entry = Entry(update_window, width=20, background="lightgrey", font=("Arial", 12))
         updated_password_entry.insert(0, password_value)
-        updated_password_entry.grid(row=1, column=1, padx=5, pady=2)
+        updated_password_entry.grid(row=2, column=1, padx=5, pady=2)
 
         # Update button in the update window
-        update_button = Button(update_window, text="Update", bg="blue", command=lambda: self.perform_update(selected_index, updated_website_entry.get(), updated_password_entry.get(), update_window))
-        update_button.grid(row=2, column=0, columnspan=2, padx=5, pady=2)
+        update_button = Button(update_window, text="Update", bg="blue", command=lambda: self.perform_update(selected_index, updated_website_entry.get(), updated_username_entry.get(), updated_password_entry.get(), update_window))
+        update_button.grid(row=3, column=0, columnspan=2, padx=5, pady=2)
 
-    def perform_update(self, selected_index, updated_website, updated_password, update_window):
+    def perform_update(self, selected_index, updated_website, updated_username, updated_password, update_window):
         # Remove the selected item from the Listbox
         self.item_listbox.delete(selected_index)
 
         # Add the updated information to the Listbox
-        updated_item_text = f"Website: {updated_website}, Password: {updated_password}"
+        updated_item_text = f"Website: {updated_website}, Username: {updated_username}, Password: {updated_password}"
         self.item_listbox.insert(selected_index, updated_item_text)
 
         # Update the dictionary with the new information
         if updated_website in self.website_passwords:
             del self.website_passwords[updated_website]
-        self.website_passwords[updated_website] = updated_password
+        self.website_passwords[updated_website] = {'Username': updated_username, 'Password': updated_password}
 
         # Close the update window
         update_window.destroy()
@@ -160,7 +169,7 @@ class root_window:
         selected_item = self.item_listbox.get(selected_index)
 
         # Extract password from the selected item
-        password_value = selected_item.split(',')[1].split(': ')[1]
+        password_value = selected_item.split(',')[2].split(': ')[1]
 
         # Copy the password to the clipboard
         pyperclip.copy(password_value)
@@ -174,21 +183,34 @@ class root_window:
         search_term = self.search_entry.get().lower()
 
         # Display items matching the search term
-        for website, password in self.website_passwords.items():
+        for website, password_info in self.website_passwords.items():
             if search_term in website.lower():
-                item_text = f"Website: {website}, Password: {password}"
+                item_text = f"Website: {website}, Username: {password_info['Username']}, Password: {password_info['Password']}"
                 self.item_listbox.insert("end", item_text)
 
-    def create_entry_boxes(self):
-        self.entry_boxes = []
-        self.col_no = 0
-        self.row_no = 1  # Incremented row number for entry boxes
-        for i in range(4):
-            show = "" if i != 3 else "*"
-            entry_box = Entry(self.crud_frame, width=20, background="lightgrey", font=("Arial", 12), show=show)
-            entry_box.grid(row=self.row_no, column=self.col_no, padx=5, pady=2)
-            self.col_no += 1
-            self.entry_boxes.append(entry_box)
+    def display_selected_item(self, event):
+        # Get the selected item from the Listbox
+        selected_index = self.item_listbox.curselection()
+        if not selected_index:
+            return
+
+        # Get the text of the selected item
+        selected_item = self.item_listbox.get(selected_index)
+
+        # Extract website, username, and password from the selected item
+        website_value = selected_item.split(',')[0].split(': ')[1]
+        username_value = selected_item.split(',')[1].split(': ')[1]
+        password_value = selected_item.split(',')[2].split(': ')[1]
+
+        # Display the values in the corresponding Entry boxes
+        self.entry_boxes[1].delete(0, END)
+        self.entry_boxes[1].insert(0, website_value)
+
+        self.entry_boxes[2].delete(0, END)
+        self.entry_boxes[2].insert(0, username_value)
+
+        self.entry_boxes[3].delete(0, END)
+        self.entry_boxes[3].insert(0, password_value)
 
 
 if __name__ == "__main__":
